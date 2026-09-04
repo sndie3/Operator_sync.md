@@ -232,7 +232,7 @@ Kung tanan 3 ka check OK → padayon ang request. Kung bisag usa lang ang fail �
 
 ### Unsa ang buhaton sa team? Token lang ang kinahanglan
 
-Ang team mangayo lang og token (parehas sa ilang ubang API) ug i-butang sa header sa tanan sync API calls:
+Ang token kay **i-provide lang sa admin** — dili na kinahanglan mangita ang team. I-butang lang sa header sa tanan sync API calls:
 
 ```
 Authorization: Bearer <token>
@@ -250,10 +250,10 @@ curl -X POST http://localhost:8000/api/operator/rounds/123/sync/open \
 const response = await fetch("/api/operator/rounds/123/sync/open", {
   method: "POST",
   headers: {
-    "Authorization": `Bearer ${token}`,  // token nga gi-pass sa team
+    "Authorization": `Bearer ${token}`,   // token nga gi-provide sa admin
     "Content-Type": "application/json"
   }
-});
+})
 ```
 
 Kung walay header o wrong ang token → **401 Unauthorized**.
@@ -280,7 +280,7 @@ Kung ang operator walay grant para sa game sa round → **403 Insufficient permi
 ┌─────────────────────────────────────────────────────────────┐
 │  OPERATOR (frontend)                                        │
 │                                                             │
-│  1. Mangayo og token (parehas sa ubang API)                 │
+│  1. Token nga gi-provide sa admin                           │
 │                                                             │
 │  2. Tanan sync API calls:                                   │
 │     Authorization: Bearer <token>                           │
@@ -308,7 +308,7 @@ Kung ang operator walay grant para sa game sa round → **403 Insufficient permi
 
 | Error | Meaning | Unsa ang buhaton |
 |-------|---------|------------------|
-| `401` Invalid or expired token | Walay token, wrong token, o expired na | Mangayo og bag-ong token |
+| `401` Invalid or expired token | Walay token, wrong token, o expired na | Mangayo og bag-ong token sa admin |
 | `403` Account not activated | Naay account pero dili pa activated | I-activate ang account sa admin |
 | `403` Insufficient permissions | Activated ka pero walay operator grant | Kuha og operator grant sa admin (`OPERATOR:3SMANIA COMBO` etc.) |
 
@@ -344,7 +344,7 @@ Ang frontend (operator console) kay **wala nag-compute og bisan unsa** — tanan
 
 ### Unsa ang buhaton sa team (frontend)?
 
-1. **Token** — mangayo og token (parehas sa ubang API), i-pass sa `Authorization: Bearer <token>` header
+1. **Token** — i-provide sa admin, i-pass sa `Authorization: Bearer <token>` header
 2. **Open button** — mo-call sa `POST /sync/open`
 3. **Timer display** — mag-poll sa `GET /sync/timer-status` every second, i-display ang `round_status`
 4. **G2G screen** — kung `Good2Go` na, i-display ang odds gikan sa `GET /sync/odds`
