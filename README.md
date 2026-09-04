@@ -214,14 +214,146 @@ Closes the round with the declared result. Stops betting (if still OPEN), runs f
 
 ---
 
-## Auth
+## Auth (Paano maka-access sa API)
 
-Tanan endpoints require operator JWT (same as existing operator API). Grant resolved per round's `game_code`:
-- `3smania` → `OPERATOR:3SMANIA COMBO`
-- `hari-tari` → `OPERATOR:HARI-TARI COMBO`
-- `regnum` → `OPERATOR:REGNUM COMBO`
+Ang API kay dili public — kinahanglan mag-login ang operator una para makakuha og "key" (token). Kini nga token ang ipakita sa tanan API calls para matino sa backend nga sila ang tunay nga operator ug naay permissyon.
 
-Header: `Authorization: Bearer <token>`
+### Unsa ang 3 ka check sa auth?
+
+Kung ang operator mag-call sa bisan unsa nga sync endpoint, mo-check ang backend sa 3 ka butang:
+
+```
+CHECK 1: Token valid ba?         → Kung dili, 401 (hindi ka pa nag-login o expired na ang token)
+CHECK 2: Account activated ba?   → Kung dili, 403 (naay account pero dili pa activated)
+CHECK 3: Naay operator grant ba? → Kung wala, 403 (activated ka pero walay permissyon sa game)
+```
+
+Kung tanan 3 ka check OK → padayon ang request. Kung bisag usa lang ang fail → mo-error.
+
+### Step 1: Mag-login para makakuha og token
+
+Sa pag-login, mo-submit ang operator sa ilang phone number ug password:
+
+```
+POST /api/auth/login
+```
+
+**Request body:**
+```json
+{
+  "phone": "09123456789",
+  "password": "iloveyou",
+  "accept_terms": true,
+  "mac_address": "00:00:00:00:00:00"
+}
+```
+
+**Response (kung sakto ang credentials):**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1LCJ1aWQiOiJPUDAwMSIsInBvc2l0aW9uIjoiT1BFUkFUT1IiLCJzcmMiOiJsb2dpbiJ9.xxx",
+  "token_type": "bearer",
+  "user": {
+    "id": 5,
+    "uid": "OP001",
+    "first_name": "Juan",
+    "last_name": "Dela Cruz",
+    "position": "OPERATOR",
+    "activation_status": "ACTIVATED"
+  },
+  "permissions": [
+    "OPERATOR:3SMANIA COMBO",
+    "OPERATOR:HARI-TARI COMBO"
+  ]
+}
+```
+
+Ang `access_token` kay ang "key" nga gamiton sa tanan sunod nga API calls. I-save ni sa frontend (localStorage o sessionStorage).
+
+### Step 2: Butangan og header ang tanan sync API calls
+
+Kung mag-call sa bisan unsa nga sync endpoint, kinahanglan butangan og header:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1...
+```
+
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:8000/api/operator/rounds/123/sync/open \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -H "Content-Type: application/json"
+```
+
+**Example (JavaScript/frontend):**
+```javascript
+const response = await fetch("/api/operator/rounds/123/sync/open", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${token}`,  // token gikan sa login response
+    "Content-Type": "application/json"
+  }
+});
+```
+
+Kung walay header o wrong ang token → **401 Unauthorized**.
+
+### Step 3: Operator Grant (kinsa ka ba sa unsa nga game)
+
+Bisan naay token ug activated ang account, kinahanglan pa naay **operator grant** para sa game nga round nga gi-call. Ang grant kay resolved **per round's game_code** — buot pasabot, ang backend mo-check unsa nga game ang round, dayon mo-check kung ang operator naay permissyon para sa game.
+
+| Game | Grant Key (permissyon nga kinahanglan) |
+|------|----------------------------------------|
+| 3smania | `OPERATOR:3SMANIA COMBO` |
+| hari-tari | `OPERATOR:HARI-TARI COMBO` |
+| regnum | `OPERATOR:REGNUM COMBO` |
+
+Ang grant kay pwede ma-assign sa duha ka paagi:
+1. **Per-user** — directly sa `ma_user_permissions` table (specific user ra)
+2. **Per-role** — sa `ma_user_roles` → `ma_role_permissions` (tanang users sa role)
+
+Kung ang operator walay grant para sa game sa round → **403 Insufficient permissions**.
+
+### Auth Flow (simplified)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  OPERATOR (frontend)                                        │
+│                                                             │
+│  1. Mag-login: POST /api/auth/login                         │
+│     → makakuha og access_token                              │
+│                                                             │
+│  2. I-save ang token (localStorage)                         │
+│                                                             │
+│  3. Tanan sync API calls:                                   │
+│     Authorization: Bearer <token>                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  BACKEND (3 ka check)                                       │
+│                                                             │
+│  CHECK 1: Token valid ba?                                   │
+│     → Kung dili: 401 "Invalid or expired token"             │
+│                                                             │
+│  CHECK 2: Account activated ba?                             │
+│     → Kung dili: 403 "Account not activated"                │
+│                                                             │
+│  CHECK 3: Naay operator grant para sa game?                 │
+│     → Kung wala: 403 "Insufficient permissions"             │
+│                                                             │
+│  ✓ Tanan OK → padayon ang request                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Common Auth Errors
+
+| Error | Meaning | Unsa ang buhaton |
+|-------|---------|------------------|
+| `401` Invalid or expired token | Walay token, wrong token, o expired na | Mag-login balik para makakuha og bag-ong token |
+| `403` Account not activated | Naay account pero dili pa activated | I-activate ang account sa admin |
+| `403` Insufficient permissions | Activated ka pero walay operator grant | Kuha og operator grant sa admin (`OPERATOR:3SMANIA COMBO` etc.) |
 
 ---
 
@@ -237,3 +369,30 @@ Header: `Authorization: Bearer <token>`
 
    ↳ Alternative at step 3: POST /sync/cancel-g2g → { round_status: "Cancelled" }  (refund all)
 ```
+
+---
+
+## Unsa ang buhaton sa API (para sa dili programmers)
+
+Ang API kay **backend code** nga nagdagan sa server. Ang iyang trabaho:
+
+1. **Mo-dawat sa requests gikan sa operator console** (frontend)
+2. **Mo-check kung pwede ang operator** (auth — kinsa ka ba, pwede ka ba)
+3. **Mo-process ang round lifecycle** base sa PDF flow:
+   - Open round → start timer → wait for timer → Good2Go
+   - Post result → close round → settle (compute winners, payouts, refunds)
+4. **Mo-return og JSON response** nga i-display sa frontend
+
+Ang frontend (operator console) kay **wala nag-compute og bisan unsa** — tanan logic naa sa backend. Ang frontend mo-call lang sa endpoints ug i-display ang response.
+
+### Unsa ang buhaton sa team (frontend)?
+
+1. **Login screen** — mo-call sa `POST /api/auth/login`, i-save ang token
+2. **Open button** — mo-call sa `POST /sync/open`
+3. **Timer display** — mag-poll sa `GET /sync/timer-status` every second, i-display ang `round_status`
+4. **G2G screen** — kung `Good2Go` na, i-display ang odds gikan sa `GET /sync/odds`
+5. **Result input** — operator mo-type og result (e.g. "HARI"), mo-call sa `POST /sync/result`
+6. **Close button** — mo-call sa `POST /sync/close` gamit ang same result
+7. **Cancel button** — kung dili mo-post og result, mo-call sa `POST /sync/cancel-g2g`
+
+Tanan computation (settlement, payouts, refunds, jackpot, odds) — **backend ang mo-ana**. Frontend mo-display lang.
