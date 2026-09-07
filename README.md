@@ -648,3 +648,4 @@ runRoundFlow();
    - regnum: `"A-2-3"` (3 cards, dash-separated)
 5. **Close result** — same sa result nga imong gi-send sa Step 6
 6. **Sunod nga round** — balik sa Create Round, same token pa. Dili na kinahanglan mag-login balik.
+s
