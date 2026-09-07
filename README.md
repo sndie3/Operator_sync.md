@@ -93,9 +93,10 @@ Authorization: Bearer <token>
 ```
 POST /api/operator/rounds/{round_id}/sync/open
 ```
-**Response:** `{ "round_id": 123, "round_status": "Opened" }`
+**Response:** `{ "round_id": 123, "round_status": "Opened", "timer_seconds": 60 }`
 
 Operator mo-click "Start" → mo-call ni. Maghimo ang backend og RNG seed (provably fair).
+Ang `timer_seconds` kay ang full duration sa timer (e.g. `60`). I-display sa screen as starting value.
 
 ---
 
@@ -186,8 +187,10 @@ POST /api/operator/rounds/{round_id}/sync/open
 
 **Response:**
 ```json
-{ "round_id": 123, "round_status": "Opened" }
+{ "round_id": 123, "round_status": "Opened", "timer_seconds": 60 }
 ```
+
+`timer_seconds` = full timer duration (int). I-display as starting value sa screen.
 
 **Errors:** `404` Round not found | `409` Round is not READY
 
@@ -648,4 +651,3 @@ runRoundFlow();
    - regnum: `"A-2-3"` (3 cards, dash-separated)
 5. **Close result** — same sa result nga imong gi-send sa Step 6
 6. **Sunod nga round** — balik sa Create Round, same token pa. Dili na kinahanglan mag-login balik.
-s
