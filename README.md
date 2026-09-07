@@ -104,9 +104,9 @@ Operator mo-click "Start" → mo-call ni. Maghimo ang backend og RNG seed (prova
 ```
 GET /api/operator/rounds/{round_id}/sync/timer-status
 ```
-**Response:** `{ "round_id": 123, "round_status": "Timer On" }`
+**Response:** `{ "round_id": 123, "round_status": "Timer On", "timer_current": 45 }`
 
-I-poll every second. I-display ang timer sa screen. Kung timer expired → `"Good2Go"`.
+I-poll every second. I-display ang `timer_current` (remaining seconds) sa screen. Kung timer expired → `"Good2Go"` (`timer_current: 0`).
 
 ---
 
@@ -115,7 +115,7 @@ I-poll every second. I-display ang timer sa screen. Kung timer expired → `"Goo
 ```
 GET /api/operator/rounds/{round_id}/sync/timer-status
 ```
-**Response:** `{ "round_id": 123, "round_status": "Good2Go" }`
+**Response:** `{ "round_id": 123, "round_status": "Good2Go", "timer_current": 0 }`
 
 Stop na ang betting. Operator mo-display sa odds ug mo-post og result.
 
@@ -207,8 +207,10 @@ I-poll every second. Auto-transition base sa timer:
 
 **Response:**
 ```json
-{ "round_id": 123, "round_status": "Timer On" }
+{ "round_id": 123, "round_status": "Timer On", "timer_current": 45 }
 ```
+
+`timer_current` = remaining seconds (int). `0` kung Good2Go / Cancelled / Close.
 
 **Errors:** `404` Round not found | `409` Round is not OPEN
 
